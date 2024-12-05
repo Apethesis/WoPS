@@ -1,5 +1,7 @@
+local signal = require("../utility/signal.lua")
 local Layer1 = {}
 Layer1.MTU = 2^16
+Layer1.ListenEVENT = signal.new()
 local oldMicros = {}
 local newMicros = {}
 
@@ -46,6 +48,9 @@ local function createHandler(micro: Microcontroller)
     task.defer(function()
         while true do
             local senderMicro, buf:buffer = micro:Receive()
+            if typeof(buf) == "buffer" then
+                Layer1.ListenEVENT:Fire(senderMicro, buf)
+            end
         end
     end)
 end

@@ -40,3 +40,5 @@ function Signal:Fire(...)
         task.spawn(callback, ...)
     end
 end
+
+return Signal
