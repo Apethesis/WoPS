@@ -5,7 +5,7 @@ local Layer3 = {}
 local ARP_cache = {}
 
 Layer3._VERSION = 0x01
-
+Layer3.IP = 2^32-1 -- temporary ip until dchp or something stupid does it
 Layer3.MTU = layer2.MTU - 18
 type Packet = {
     len: number | nil, --u16

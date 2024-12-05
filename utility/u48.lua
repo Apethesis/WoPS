@@ -2,7 +2,7 @@ local u48 = {}
 
 
 local MAX_U48 = 2^48 - 1
-
+u48.max = MAX_U48
 
 function u48.read(buf, offset)
 

@@ -11,6 +11,16 @@ local function mergeTable(t1: {[any]: any}, t2: {[any]: any})
     end
 end
 
+function Layer1.send(buf: buffer)
+    if buffer.len(buf) > Layer1.MTU then
+        error("Buffer exceeds Layer1 MTU")
+    end
+    
+    for _, micro in pairs(newMicros) do
+        micro:Send(buf)
+    end
+end
+
 local function indexMicro(startPort: Port?): {[number]: Microcontroller}
     if not startPort then
         error("startPort cannot be nil")
