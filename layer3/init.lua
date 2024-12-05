@@ -1,11 +1,14 @@
 local layer2 = require('../layer2')
 local hash32 = require('../utility/hash.lua')
+local discover = require("discover.lua")
+local conf = require("conf.lua")
 local Layer3 = {}
 
-local ARP_cache = {}
+local function tonum(num)
+    return tonumber(num,2)
+end
 
-Layer3._VERSION = 0x01
-Layer3.IP = 2^32-1 -- temporary ip until dchp or something stupid does it
+Layer3._VERSION = tonum("00000100") -- 4
 Layer3.MTU = layer2.MTU - 18
 type Packet = {
     len: number | nil, --u16
@@ -18,10 +21,6 @@ type Packet = {
     data: buffer, --u8[]
     valid: boolean?, --decode only
 }
-
-local function tonum(num)
-    return tonumber(num,2)
-end
 
 function Layer3.encode(packet: Packet): buffer
     local offset = 0

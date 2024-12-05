@@ -1,6 +1,5 @@
 local layer2 = require('../layer2')
-local layer3 = require('./init.lua') -- Include Layer3 to access layer3.IP
-local signal = require('../utility/signal.lua')
+local conf = require('conf.lua') -- Include conf to access conf.IP
 local u48 = require('../utility/u48.lua')
 local discover = {}
 local cache = {} -- {[ip: number]: {mac: number, timestamp: number}}
@@ -10,7 +9,7 @@ local TYPE_REQUEST = 1
 local TYPE_RESPONSE = 2
 
 local function encodePacket(ptype: number, ip: number, mac: number): buffer
-    local buf = buffer.create(13) -- 1 byte type + 4 bytes IP + 8 bytes MAC (6 bytes + padding)
+    local buf = buffer.create(11) -- 1 byte type + 4 bytes IP + 6 bytes MAC (6 bytes + padding)
     buffer.writeu8(buf, 0, ptype)
     buffer.writeu32(buf, 1, ip)
     u48.write(buf, 5, mac)
@@ -66,7 +65,7 @@ layer2.ListenEVENT:Connect(function(sender, packet)
     if not success then return end
 
     if ptype == TYPE_REQUEST then
-        if ip == layer3.IP then -- Use layer3.IP instead of layer2.IP
+        if ip == conf.IP then
             -- Someone is asking for our MAC address
             local responsePacket = {
                 src = layer2.MAC,
