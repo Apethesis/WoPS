@@ -2,12 +2,13 @@ local Layer1 = {}
 Layer1.MTU = 2^16
 local oldMicros = {}
 local newMicros = {}
+
 local function mergeTable(t1: {[any]: any}, t2: {[any]: any})
     for k, v in pairs(t2) do
         t1[k] = v
     end
-    -- no need to return t1 because it is modified in place
 end
+
 local function indexMicro(startPort: Port?): {[number]: Microcontroller}
     if not startPort then
         error("startPort cannot be nil")
@@ -25,7 +26,7 @@ local function indexMicro(startPort: Port?): {[number]: Microcontroller}
 
     markSeen(startPort)
 
-    while #stack > 0 do 
+    while #stack > 0 do
         local currentPort = table.remove(stack)
 
         local foundmicros = GetPartsFromPort(currentPort, "Microcontroller")
@@ -41,8 +42,15 @@ local function indexMicro(startPort: Port?): {[number]: Microcontroller}
     return micros
 end
 
-local function createHandler()
+local function createHandler(micro: Microcontroller)
+    task.defer(function()
+        while true do
+            local senderMicro, buf:buffer = micro:Receive()
+        end
+    end)
+end
 
+-- Update microcontroller list and create handlers for new micros
 local function updateMicroList(startPort: Port?)
     if not startPort then
         error("startPort cannot be nil")
@@ -68,12 +76,14 @@ local function updateMicroList(startPort: Port?)
     oldMicros = newMicros
 end
 
-
-
-
-
-
-
-
+task.defer(function()
+    local startPort = nil
+    while true do
+        pcall(function()
+            updateMicroList(startPort)
+        end)
+        task.wait(1)
+    end
+end)
 
 return Layer1
