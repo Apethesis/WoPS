@@ -10,11 +10,30 @@ type Packet = {
     dst: number, -- u48 (6 bytes)
     data: buffer
 }
+local function generateRandomMAC()
+    -- Generate 6 random bytes
+    local b1 = math.random(0, 255)
+    local b2 = math.random(0, 255)
+    local b3 = math.random(0, 255)
+    local b4 = math.random(0, 255)
+    local b5 = math.random(0, 255)
+    local b6 = math.random(0, 255)
+    b1 = bit32.band(b1, 0xFE)
+    b1 = bit32.bor(b1, 0x02)
+
+    return bit32.bor(
+        bit32.lshift(b1, 40),
+        bit32.lshift(b2, 32),
+        bit32.lshift(b3, 24),
+        bit32.lshift(b4, 16),
+        bit32.lshift(b5, 8),
+        b6
+    )
+end
 
 -- Broadcast MAC address (all 1's)
 Layer2.BROADCAST = u48.max
-Layer2.MAC = 0
-
+Layer2.MAC = generateRandomMAC()
 function Layer2.encode(packet: Packet): buffer
     local offset = 0
     local obuf = buffer.create(buffer.len(packet.data) + 12)

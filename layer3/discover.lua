@@ -9,17 +9,22 @@ local TYPE_REQUEST = 1
 local TYPE_RESPONSE = 2
 
 local function encodePacket(ptype: number, ip: number, mac: number): buffer
-    local buf = buffer.create(11) -- 1 byte type + 4 bytes IP + 6 bytes MAC (6 bytes + padding)
-    buffer.writeu8(buf, 0, ptype)
-    buffer.writeu32(buf, 1, ip)
-    u48.write(buf, 5, mac)
+    local buf = buffer.create(12) -- 1 byte type + 4 bytes IP + 6 bytes MAC (6 bytes + padding)
+    buffer.writeu8(buf, 0, 127) -- Discover protocol ID
+    buffer.writeu8(buf, 1, ptype)
+    buffer.writeu32(buf, 2, ip)
+    u48.write(buf, 6, mac)
     return buf
 end
 
 local function decodePacket(buf: buffer): (number, number, number)
-    local ptype = buffer.readu8(buf, 0)
-    local ip = buffer.readu32(buf, 1)
-    local mac = u48.read(buf, 5)
+    local protocolId = buffer.readu8(buf, 0)
+    if protocolId ~= 127 then
+        error('Invalid protocol ID')
+    end
+    local ptype = buffer.readu8(buf, 1)
+    local ip = buffer.readu32(buf, 2)
+    local mac = u48.read(buf, 6)
     return ptype, ip, mac
 end
 

@@ -2,7 +2,6 @@ local signal = require("../utility/signal.lua")
 local Layer1 = {}
 Layer1.MTU = 2^16
 Layer1.ListenEVENT = signal.new()
-local oldMicros = {}
 local newMicros = {}
 
 local function mergeTable(t1: {[any]: any}, t2: {[any]: any})
@@ -54,17 +53,6 @@ local function indexMicro(startPort: Port?): {[number]: Microcontroller}
     return micros
 end
 
-local function createHandler(micro: Microcontroller)
-    task.defer(function()
-        while true do
-            local senderMicro, buf:buffer = micro:Receive()
-            if typeof(buf) == "buffer" then
-                Layer1.ListenEVENT:Fire(senderMicro, buf)
-            end
-        end
-    end)
-end
-
 -- Update microcontroller list and create handlers for new micros
 local function updateMicroList(startPort: Port?)
     if not startPort then
@@ -72,24 +60,16 @@ local function updateMicroList(startPort: Port?)
     end
 
     newMicros = indexMicro(startPort)
+end
 
-    for _, micro in pairs(newMicros) do
-        local found = false
-        for _, existingMicro in pairs(oldMicros) do
-            if existingMicro == micro then
-                found = true
-                break
-            end
-        end
-
-        if not found then
-            print("New microcontroller detected, creating handler:", micro)
-            createHandler(micro)
+task.defer(function()
+    while true do
+        local senderMicro, buf:buffer = Microcontroller:Receive()
+        if typeof(buf) == "buffer" then
+            Layer1.ListenEVENT:Fire(senderMicro, buf)
         end
     end
-
-    oldMicros = newMicros
-end
+end)
 
 task.defer(function()
     local startPort = nil
