@@ -45,3 +45,5 @@ luac.out
 types
 rokit.toml
 .darklua.json
+compiled*
+compiled/

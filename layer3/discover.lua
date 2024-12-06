@@ -1,15 +1,46 @@
-local layer2 = require('../layer2')
 local conf = require('conf.lua') -- Include conf to access conf.IP
 local u48 = require('../utility/u48.lua')
-local discover = {}
-local cache = {} -- {[ip: number]: {mac: number, timestamp: number}}
 
-local CACHE_TIMEOUT = 5 -- seconds
-local TYPE_REQUEST = 1
-local TYPE_RESPONSE = 2
+local Discover = {}
+Discover.__index = Discover
 
-local function encodePacket(ptype: number, ip: number, mac: number): buffer
-    local buf = buffer.create(12) -- 1 byte type + 4 bytes IP + 6 bytes MAC (6 bytes + padding)
+function Discover.new(layer2Instance)
+    local self = setmetatable({}, Discover)
+    self.layer2 = layer2Instance
+    self.cache = {} -- {[ip: number]: {mac: number, timestamp: number}}
+
+    self.CACHE_TIMEOUT = 5 -- seconds
+    self.TYPE_REQUEST = 1
+    self.TYPE_RESPONSE = 2
+
+    -- Subscribe to Layer2's ListenEVENT
+    self.layer2.ListenEVENT:Connect(function(sender, packet)
+        local success, ptype, ip, mac = pcall(function()
+            return self:decodePacket(packet.data)
+        end)
+        if not success then return end
+
+        if ptype == self.TYPE_REQUEST then
+            if ip == conf.IP then
+                -- Respond with our MAC address
+                local responsePacket = {
+                    src = self.layer2.MAC,
+                    dst = packet.src,
+                    data = self:encodePacket(self.TYPE_RESPONSE, ip, self.layer2.MAC)
+                }
+                self.layer2:send(responsePacket)
+            end
+        elseif ptype == self.TYPE_RESPONSE then
+            -- Update cache with IP-MAC mapping
+            self:updateCache(ip, mac)
+        end
+    end)
+
+    return self
+end
+
+function Discover:encodePacket(ptype: number, ip: number, mac: number): buffer
+    local buf = buffer.create(12) -- 1 byte protocol ID + 1 byte type + 4 bytes IP + 6 bytes MAC
     buffer.writeu8(buf, 0, 127) -- Discover protocol ID
     buffer.writeu8(buf, 1, ptype)
     buffer.writeu32(buf, 2, ip)
@@ -17,7 +48,7 @@ local function encodePacket(ptype: number, ip: number, mac: number): buffer
     return buf
 end
 
-local function decodePacket(buf: buffer): (number, number, number)
+function Discover:decodePacket(buf: buffer): (number, number, number)
     local protocolId = buffer.readu8(buf, 0)
     if protocolId ~= 127 then
         error('Invalid protocol ID')
@@ -28,26 +59,26 @@ local function decodePacket(buf: buffer): (number, number, number)
     return ptype, ip, mac
 end
 
-local function updateCache(ip: number, mac: number)
-    cache[ip] = {mac = mac, timestamp = os.time()}
+function Discover:updateCache(ip: number, mac: number)
+    self.cache[ip] = {mac = mac, timestamp = os.time()}
 end
 
-local function isValidCache(ip: number): boolean
-    local entry = cache[ip]
-    return entry and (os.time() - entry.timestamp <= CACHE_TIMEOUT)
+function Discover:isValidCache(ip: number): boolean
+    local entry = self.cache[ip]
+    return entry and (os.time() - entry.timestamp <= self.CACHE_TIMEOUT)
 end
 
-function discover.get(targetIp: number): number?
-    if isValidCache(targetIp) then
-        return cache[targetIp].mac
+function Discover:get(targetIp: number): number?
+    if self:isValidCache(targetIp) then
+        return self.cache[targetIp].mac
     end
 
-    discover.request(targetIp)
+    self:request(targetIp)
 
     local startTime = os.time()
     while os.time() - startTime < 1 do -- 1 second timeout
-        if isValidCache(targetIp) then
-            return cache[targetIp].mac
+        if self:isValidCache(targetIp) then
+            return self.cache[targetIp].mac
         end
         task.wait()
     end
@@ -55,34 +86,13 @@ function discover.get(targetIp: number): number?
     return nil
 end
 
-function discover.request(targetIp: number)
+function Discover:request(targetIp: number)
     local packet = {
-        src = layer2.MAC,
-        dst = layer2.BROADCAST,
-        data = encodePacket(TYPE_REQUEST, targetIp, layer2.MAC)
+        src = self.layer2.MAC,
+        dst = self.layer2.BROADCAST,
+        data = self:encodePacket(self.TYPE_REQUEST, targetIp, self.layer2.MAC)
     }
-    layer2.send(packet)
+    self.layer2:send(packet)
 end
 
--- Listen for ARP packets
-layer2.ListenEVENT:Connect(function(sender, packet)
-    local success, ptype, ip, mac = pcall(decodePacket, packet.data)
-    if not success then return end
-
-    if ptype == TYPE_REQUEST then
-        if ip == conf.IP then
-            -- Someone is asking for our MAC address
-            local responsePacket = {
-                src = layer2.MAC,
-                dst = packet.src, -- Reply directly to the requester
-                data = encodePacket(TYPE_RESPONSE, ip, layer2.MAC)
-            }
-            layer2.send(responsePacket)
-        end
-    elseif ptype == TYPE_RESPONSE then
-        -- Update cache with IP-MAC mapping
-        updateCache(ip, mac)
-    end
-end)
-
-return discover
+return Discover
