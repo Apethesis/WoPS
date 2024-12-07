@@ -1,12 +1,11 @@
-local conf = require('conf.lua') -- Include conf to access conf.IP
 local u48 = require('../utility/u48.lua')
 
 local Discover = {}
 Discover.__index = Discover
 
-function Discover.new(layer2Instance)
+function Discover.new(layer3Instance)
     local self = setmetatable({}, Discover)
-    self.layer2 = layer2Instance
+    self.layer2 = layer3Instance.layer2
     self.cache = {} -- {[ip: number]: {mac: number, timestamp: number}}
 
     self.CACHE_TIMEOUT = 5 -- seconds

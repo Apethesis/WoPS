@@ -23,6 +23,7 @@ function Layer3.new(layer2Instance)
     self.layer2 = layer2Instance
     self.MTU = self.layer2.MTU - 18  -- Adjust MTU based on Layer2
     self.ListenEVENT = signal.new()
+    self.ip = 0xFFFFFFFF
 
     -- Subscribe to Layer2's ListenEVENT
     self.layer2.ListenEVENT:Connect(function(senderMicro, frame)
